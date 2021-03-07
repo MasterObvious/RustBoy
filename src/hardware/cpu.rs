@@ -27,11 +27,19 @@ impl CPU {
 
     fn get_immediate_word(&mut self) -> u16 {
         self.program_counter += 1;
-        let lower_byte = self.memory[self.program_counter];
+        let lower_byte = self.read_memory(self.program_counter);
         self.program_counter += 1;
-        let higher_byte = self.memory[self.program_counter];
+        let higher_byte = self.read_memory(self.program_counter);
 
         bytes_to_word(higher_byte, lower_byte)
+    }
+
+    fn read_memory(&self, address: usize) -> u8 {
+        self.memory[address]
+    }
+
+    fn write_memory(&mut self, address: usize, value: u8) {
+        self.memory[address] = value;
     }
 
     fn execute_load_instruction(&mut self, load_type: LoadType) {
@@ -43,7 +51,7 @@ impl CPU {
 
             LoadType::ImmediateByte(reg) => {
                 self.program_counter += 1;
-                let byte = self.memory[self.program_counter];
+                let byte = self.read_memory(self.program_counter);
 
                 self.registers.write_register(reg, byte as u16);
             }
@@ -55,10 +63,10 @@ impl CPU {
 
             LoadType::ImmediateByteToMemory(reg) => {
                 self.program_counter += 1;
-                let byte = self.memory[self.program_counter];
+                let byte = self.read_memory(self.program_counter);
                 let address = self.registers.read_register(reg);
 
-                self.memory[address as usize] = byte;
+                self.write_memory(address as usize, byte);
             }
             LoadType::StackPointerToMemory => {
                 let address = self.get_immediate_word() as usize;
@@ -66,20 +74,20 @@ impl CPU {
 
                 let (high, low) = word_to_bytes(sp);
 
-                self.memory[address] = low;
-                self.memory[address + 1] = high;
+                self.write_memory(address as usize, low);
+                self.write_memory((address + 1) as usize, high);
             }
 
             LoadType::FromMemory(destination, address_reg) => {
                 let address = self.registers.read_register(address_reg) as usize;
-                let value = self.memory[address] as u16;
+                let value = self.read_memory(address) as u16;
 
                 self.registers.write_register(destination, value);
             }
 
             LoadType::FromMemoryWithSideEffect(reg, side_effect) => {
                 let address = self.registers.read_register(reg.clone()) as usize;
-                let value = self.memory[address] as u16;
+                let value = self.read_memory(address) as u16;
 
                 self.registers.write_register(Register::A, value);
 
@@ -97,14 +105,14 @@ impl CPU {
                 let address = self.registers.read_register(address_reg) as usize;
                 let value = self.registers.read_register(source);
 
-                self.memory[address] = value as u8;
+                self.write_memory(address, value as u8);
             }
 
             LoadType::ToMemoryWithSideEffect(reg, side_effect) => {
                 let address = self.registers.read_register(reg.clone()) as usize;
                 let value = self.registers.read_register(Register::A);
 
-                self.memory[address] = value as u8;
+                self.write_memory(address, value as u8);
 
                 match side_effect {
                     RegisterSideEffect::Inc => {
@@ -144,7 +152,7 @@ impl CPU {
 
     fn execute_jump_relative(&mut self, condition: JumpCondition) {
         self.program_counter += 1;
-        let steps = self.memory[self.program_counter];
+        let steps = self.read_memory(self.program_counter);
 
         match condition {
             JumpCondition::NegatedFlag(flag) => {
@@ -160,7 +168,7 @@ impl CPU {
         // All prefixed instructions are 2 bytes long
         self.program_counter += 1;
 
-        let opcode = self.memory[self.program_counter];
+        let opcode = self.read_memory(self.program_counter);
         let instruction = PrefixedInstruction::decode(opcode);
 
         match instruction {
@@ -183,7 +191,7 @@ impl CPU {
     }
 
     pub fn step(&mut self) {
-        let opcode = self.memory[self.program_counter];
+        let opcode = self.read_memory(self.program_counter);
 
         let instruction = Instruction::decode(opcode);
 
