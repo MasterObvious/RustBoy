@@ -1,7 +1,9 @@
-use crate::utils::bytes_to_word;
+use crate::utils::{bytes_to_word, word_to_bytes};
 
 use super::{
-    instructions::{Instruction, JumpCondition, LoadType, PrefixedInstruction, XORTarget},
+    instructions::{
+        Instruction, JumpCondition, LoadType, PrefixedInstruction, RegisterSideEffect, XORTarget,
+    },
     registers::{Flag, Register, RegisterFile},
 };
 
@@ -23,17 +25,95 @@ impl CPU {
         }
     }
 
+    fn get_immediate_word(&mut self) -> u16 {
+        self.program_counter += 1;
+        let lower_byte = self.memory[self.program_counter];
+        self.program_counter += 1;
+        let higher_byte = self.memory[self.program_counter];
+
+        bytes_to_word(higher_byte, lower_byte)
+    }
+
     fn execute_load_instruction(&mut self, load_type: LoadType) {
         match load_type {
             LoadType::ImmediateWord(reg) => {
-                self.program_counter += 1;
-                let lower_byte = self.memory[self.program_counter];
-                self.program_counter += 1;
-                let higher_byte = self.memory[self.program_counter];
-
-                let word = bytes_to_word(higher_byte, lower_byte);
-
+                let word = self.get_immediate_word();
                 self.registers.write_register(reg, word);
+            }
+
+            LoadType::ImmediateByte(reg) => {
+                self.program_counter += 1;
+                let byte = self.memory[self.program_counter];
+
+                self.registers.write_register(reg, byte as u16);
+            }
+
+            LoadType::RegToReg(reg, other_reg) => {
+                let value = self.registers.read_register(other_reg);
+                self.registers.write_register(reg, value);
+            }
+
+            LoadType::ImmediateByteToMemory(reg) => {
+                self.program_counter += 1;
+                let byte = self.memory[self.program_counter];
+                let address = self.registers.read_register(reg);
+
+                self.memory[address as usize] = byte;
+            }
+            LoadType::StackPointerToMemory => {
+                let address = self.get_immediate_word() as usize;
+                let sp = self.registers.read_register(Register::StackPointer);
+
+                let (high, low) = word_to_bytes(sp);
+
+                self.memory[address] = low;
+                self.memory[address + 1] = high;
+            }
+
+            LoadType::FromMemory(destination, address_reg) => {
+                let address = self.registers.read_register(address_reg) as usize;
+                let value = self.memory[address] as u16;
+
+                self.registers.write_register(destination, value);
+            }
+
+            LoadType::FromMemoryWithSideEffect(reg, side_effect) => {
+                let address = self.registers.read_register(reg.clone()) as usize;
+                let value = self.memory[address] as u16;
+
+                self.registers.write_register(Register::A, value);
+
+                match side_effect {
+                    RegisterSideEffect::Inc => {
+                        self.registers.write_register(reg, address as u16 + 1)
+                    }
+                    RegisterSideEffect::Dec => {
+                        self.registers.write_register(reg, address as u16 - 1)
+                    }
+                }
+            }
+
+            LoadType::ToMemory(address_reg, source) => {
+                let address = self.registers.read_register(address_reg) as usize;
+                let value = self.registers.read_register(source);
+
+                self.memory[address] = value as u8;
+            }
+
+            LoadType::ToMemoryWithSideEffect(reg, side_effect) => {
+                let address = self.registers.read_register(reg.clone()) as usize;
+                let value = self.registers.read_register(Register::A);
+
+                self.memory[address] = value as u8;
+
+                match side_effect {
+                    RegisterSideEffect::Inc => {
+                        self.registers.write_register(reg, address as u16 + 1)
+                    }
+                    RegisterSideEffect::Dec => {
+                        self.registers.write_register(reg, address as u16 - 1)
+                    }
+                }
             }
         }
     }

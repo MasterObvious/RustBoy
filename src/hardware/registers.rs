@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub enum Register {
     A, // Accumulator
     F, // Flags
