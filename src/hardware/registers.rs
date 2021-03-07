@@ -21,7 +21,7 @@ pub struct RegisterFile {
 }
 
 impl RegisterFile {
-    pub fn new() -> RegisterFile {
+    pub fn new() -> Self {
         let register_data = [0; 10];
 
         RegisterFile { register_data }

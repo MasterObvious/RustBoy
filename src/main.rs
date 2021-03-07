@@ -1,8 +1,9 @@
 mod hardware;
+mod utils;
 
 use crate::hardware::CPU;
 
 fn main() {
-    let cpu = CPU::new();
-    println!("Hello, world!");
+    let mut cpu = CPU::new();
+    cpu.step();
 }
