@@ -1,7 +1,7 @@
 use crate::utils::bytes_to_word;
 
 use super::{
-    instructions::{Instruction, LoadType, PrefixedInstruction, XORTarget},
+    instructions::{Instruction, JumpCondition, LoadType, PrefixedInstruction, XORTarget},
     registers::{Flag, Register, RegisterFile},
 };
 
@@ -62,6 +62,20 @@ impl CPU {
         self.registers.set_flag(Flag::H, true);
     }
 
+    fn execute_jump_relative(&mut self, condition: JumpCondition) {
+        self.program_counter += 1;
+        let steps = self.memory[self.program_counter];
+
+        match condition {
+            JumpCondition::NegatedFlag(flag) => {
+                if !self.registers.get_flag(flag) {
+                    // We always increment the counter so ensure we go one back to land on the correct address
+                    self.program_counter += (steps - 1) as usize;
+                }
+            }
+        }
+    }
+
     fn execute_prefixed_instruction(&mut self) {
         // All prefixed instructions are 2 bytes long
         self.program_counter += 1;
@@ -80,6 +94,7 @@ impl CPU {
             Instruction::XOR(target) => self.execute_xor_instruction(target),
             Instruction::Load(load_type) => self.execute_load_instruction(load_type),
             Instruction::Prefixed => self.execute_prefixed_instruction(),
+            Instruction::JumpRelative(condition) => self.execute_jump_relative(condition),
             Instruction::NoOp => (),
         };
 
