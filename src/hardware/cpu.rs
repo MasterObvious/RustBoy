@@ -1,7 +1,7 @@
 use crate::utils::bytes_to_word;
 
 use super::{
-    instructions::{Instruction, LoadType, XORTarget},
+    instructions::{Instruction, LoadType, PrefixedInstruction, XORTarget},
     registers::{Flag, Register, RegisterFile},
 };
 
@@ -53,10 +53,33 @@ impl CPU {
         }
     }
 
+    fn execute_bit_instruction(&mut self, index: u8, reg: Register) {
+        let value = self.registers.read_register(reg);
+        let bit = (value >> index) & 1 != 0;
+
+        self.registers.set_flag(Flag::Z, !bit);
+        self.registers.set_flag(Flag::N, false);
+        self.registers.set_flag(Flag::H, true);
+    }
+
+    fn execute_prefixed_instruction(&mut self) {
+        // All prefixed instructions are 2 bytes long
+        self.program_counter += 1;
+
+        let opcode = self.memory[self.program_counter];
+        let instruction = PrefixedInstruction::decode(opcode);
+
+        match instruction {
+            PrefixedInstruction::Bit(index, reg) => self.execute_bit_instruction(index, reg),
+            PrefixedInstruction::NoOp => (),
+        };
+    }
+
     fn execute(&mut self, instruction: Instruction) {
         match instruction {
             Instruction::XOR(target) => self.execute_xor_instruction(target),
             Instruction::Load(load_type) => self.execute_load_instruction(load_type),
+            Instruction::Prefixed => self.execute_prefixed_instruction(),
             Instruction::NoOp => (),
         };
 
