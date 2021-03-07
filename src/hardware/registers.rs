@@ -16,6 +16,13 @@ pub enum Register {
     StackPointer, // Stack Pointer
 }
 
+pub enum Flag {
+    Z, // Zero Flag
+    N, // Add / Sub Flag
+    H, // Half carry
+    C, // Carry
+}
+
 pub struct RegisterFile {
     register_data: [u8; 10],
 }
@@ -81,6 +88,31 @@ impl RegisterFile {
 
         (higher_byte << 8) | lower_byte
     }
+
+    fn get_flag(&self, flag: Flag) -> bool {
+        let flags = self.register_data[1];
+        match flag {
+            Flag::Z => ((flags >> 7) & 1) != 0,
+            Flag::N => ((flags >> 6) & 1) != 0,
+            Flag::H => ((flags >> 5) & 1) != 0,
+            Flag::C => ((flags >> 4) & 1) != 0,
+        }
+    }
+
+    fn set_flag(&mut self, flag: Flag, value: bool) {
+        let bitmask = match flag {
+            Flag::Z => 1 << 7,
+            Flag::N => 1 << 6,
+            Flag::H => 1 << 5,
+            Flag::C => 1 << 4,
+        };
+
+        self.register_data[1] = if value {
+            self.register_data[1] | bitmask
+        } else {
+            self.register_data[1] & !bitmask
+        };
+    }
 }
 
 #[cfg(test)]
@@ -119,5 +151,21 @@ mod tests {
         let mut register_file = RegisterFile::new();
         register_file.write_register(Register::B, 65535);
         assert_eq!(register_file.read_register(Register::B), 255);
+    }
+
+    #[test]
+    fn flags() {
+        let mut register_file = RegisterFile::new();
+        register_file.write_register(Register::F, 0);
+
+        assert_eq!(register_file.get_flag(Flag::Z), false);
+
+        register_file.set_flag(Flag::Z, true);
+        assert_eq!(register_file.get_flag(Flag::Z), true);
+        assert_eq!(register_file.get_flag(Flag::N), false);
+
+        register_file.set_flag(Flag::Z, false);
+        assert_eq!(register_file.get_flag(Flag::Z), false);
+        assert_eq!(register_file.get_flag(Flag::N), false);
     }
 }
