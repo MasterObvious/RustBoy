@@ -1,8 +1,8 @@
 use crate::utils::bytes_to_word;
 
 use super::{
-    instructions::{Instruction, LoadType},
-    registers::RegisterFile,
+    instructions::{Instruction, LoadType, XORTarget},
+    registers::{Flag, Register, RegisterFile},
 };
 
 pub struct CPU {
@@ -38,8 +38,24 @@ impl CPU {
         }
     }
 
+    fn execute_xor_instruction(&mut self, target: XORTarget) {
+        match target {
+            XORTarget::Register(reg) => {
+                let a_reg = self.registers.read_register(Register::A);
+                let val = self.registers.read_register(reg);
+                let xor_result = a_reg ^ val;
+
+                self.registers.write_register(Register::A, xor_result);
+                // Clear flags register
+                self.registers.write_register(Register::F, 0);
+                self.registers.set_flag(Flag::Z, xor_result == 0);
+            }
+        }
+    }
+
     fn execute(&mut self, instruction: Instruction) {
         match instruction {
+            Instruction::XOR(target) => self.execute_xor_instruction(target),
             Instruction::Load(load_type) => self.execute_load_instruction(load_type),
             Instruction::NoOp => (),
         };

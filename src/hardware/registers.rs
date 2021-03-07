@@ -89,7 +89,7 @@ impl RegisterFile {
         (higher_byte << 8) | lower_byte
     }
 
-    fn get_flag(&self, flag: Flag) -> bool {
+    pub fn get_flag(&self, flag: Flag) -> bool {
         let flags = self.register_data[1];
         match flag {
             Flag::Z => ((flags >> 7) & 1) != 0,
@@ -99,7 +99,7 @@ impl RegisterFile {
         }
     }
 
-    fn set_flag(&mut self, flag: Flag, value: bool) {
+    pub fn set_flag(&mut self, flag: Flag, value: bool) {
         let bitmask = match flag {
             Flag::Z => 1 << 7,
             Flag::N => 1 << 6,
